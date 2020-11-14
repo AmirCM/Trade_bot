@@ -16,10 +16,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Stages
-FIRST, SECOND, THIRD = range(3)
+FIRST, SECOND, THIRD, FIFTH = range(4)
 # Callback data
 ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN = range(7)
-dollar, euro, pond, yuan, leer = range(10, 15)
+
 HAVALEH, DIGITAL = range(2)
 currency = {'Bitcoin': 'BTC',
             'Ethereum': 'ETH',
@@ -75,13 +75,13 @@ def havaleh(update: Update, context: CallbackContext) -> None:
     query.answer()
     keyboard = [
         [
-            InlineKeyboardButton("دلار", callback_data=str(dollar)),
-            InlineKeyboardButton("یورو", callback_data=str(euro)),
-            InlineKeyboardButton("پوند", callback_data=str(pond))
+            InlineKeyboardButton("دلار", callback_data=str('dollar')),
+            InlineKeyboardButton("یورو", callback_data=str('euro')),
+            InlineKeyboardButton("پوند", callback_data=str('pond'))
         ],
         [
-            InlineKeyboardButton("یوان", callback_data=str(yuan)),
-            InlineKeyboardButton("لیر", callback_data=str(leer))
+            InlineKeyboardButton("یوان", callback_data=str('yuan')),
+            InlineKeyboardButton("لیر", callback_data=str('leer'))
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -121,23 +121,41 @@ def digital(update: Update, context: CallbackContext) -> None:
 
 
 def other(update: Update, context: CallbackContext) -> None:
-    print('other')
     """Show new choice of buttons"""
     query = update.callback_query
     query.answer()
-    
+    print('other: ', query.data)
     keyboard = [
         [
-            InlineKeyboardButton("Yes, let's do it again!", callback_data=str(ONE)),
-            InlineKeyboardButton("Nah, I've had enough ...", callback_data=str(TWO)),
+            InlineKeyboardButton("خرید " + query.data, callback_data=query.data+' buy'),
+            InlineKeyboardButton("فروش " + query.data, callback_data=query.data+' sell'),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
-        text="Third CallbackQueryHandler. Do want to start over?", reply_markup=reply_markup
+        text="منوی خرید و فروش", reply_markup=reply_markup
     )
     # Transfer to conversation state `SECOND`
     return THIRD
+
+
+def sell_buy(update: Update, context: CallbackContext) -> None:
+
+    query = update.callback_query
+    query.answer()
+    print('SELL BUY: ', query.data)
+    keyboard = [
+        [
+            InlineKeyboardButton(" منوی اصلی ", callback_data=str(ONE)),
+            InlineKeyboardButton(" خدانگهدار ", callback_data=str(TWO)),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    query.edit_message_text(
+        text="منوی خرید و فروش", reply_markup=reply_markup
+    )
+    # Transfer to conversation state `SECOND`
+    return FIFTH
 
 
 def end(update: Update, context: CallbackContext) -> None:
@@ -160,9 +178,12 @@ def main():
                 CallbackQueryHandler(digital, pattern='^' + str(DIGITAL) + '$'),
             ],
             SECOND: [
-                CallbackQueryHandler(other, pattern='^\d*$')
+                CallbackQueryHandler(other, pattern='^.*$')
             ],
             THIRD: [
+                CallbackQueryHandler(sell_buy, pattern='^.*$'),
+            ],
+            FIFTH: [
                 CallbackQueryHandler(start_over, pattern='^' + str(ONE) + '$'),
                 CallbackQueryHandler(end, pattern='^' + str(TWO) + '$'),
             ],
