@@ -52,14 +52,13 @@ def start(update: Update, context: CallbackContext) -> None:
 
 
 def start_over(update: Update, context: CallbackContext) -> None:
-    user = update.message.from_user
     print('start over ', user.username)
     query = update.callback_query
     query.answer()
     keyboard = [
         [
-            InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH) + ',' + user.username),
-            InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL) + ',' + user.username),
+            InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH)),
+            InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL)),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -69,20 +68,22 @@ def start_over(update: Update, context: CallbackContext) -> None:
 
 
 def havaleh(update: Update, context: CallbackContext) -> None:
-    print('ARZ HAVALEH')
     query = update.callback_query
     query.answer()
+    print('ARZ HAVALEH ', query.data)
+
     keyboard = [
         [
-            InlineKeyboardButton("دلار", callback_data=str('dollar')),
-            InlineKeyboardButton("یورو", callback_data=str('euro')),
-            InlineKeyboardButton("پوند", callback_data=str('pond'))
+            InlineKeyboardButton("دلار", callback_data='dollar,' + query.data),
+            InlineKeyboardButton("یورو", callback_data='euro,' + query.data),
+            InlineKeyboardButton("پوند", callback_data='pond,' + query.data)
         ],
         [
-            InlineKeyboardButton("یوان", callback_data=str('yuan')),
-            InlineKeyboardButton("لیر", callback_data=str('leer'))
+            InlineKeyboardButton("یوان", callback_data=str('yuan,' + query.data)),
+            InlineKeyboardButton("لیر", callback_data=str('leer,' + query.data))
         ]
     ]
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
         text="ارز حواله", reply_markup=reply_markup
@@ -91,27 +92,27 @@ def havaleh(update: Update, context: CallbackContext) -> None:
 
 
 def digital(update: Update, context: CallbackContext) -> None:
-    print('ARZ DIGITAL')
-    """Show new choice of buttons"""
     query = update.callback_query
     query.answer()
+    print('ARZ DIGITAL ', query.data)
 
     keyboard = [
         [
-            InlineKeyboardButton("Bitcoin", callback_data=str(currency_name['Bitcoin'])),
-            InlineKeyboardButton("Ethereum", callback_data=str(currency_name['Ethereum'])),
-            InlineKeyboardButton("Monero", callback_data=str(currency_name['Monero'])),
+            InlineKeyboardButton("Bitcoin", callback_data=currency_name['Bitcoin'] + ',' + query.data),
+            InlineKeyboardButton("Ethereum", callback_data=currency_name['Ethereum'] + ',' + query.data),
+            InlineKeyboardButton("Monero", callback_data=currency_name['Monero'] + ',' + query.data),
         ],
         [
-            InlineKeyboardButton("Dash", callback_data=str(currency_name['Dash'])),
-            InlineKeyboardButton("Litecoin", callback_data=str(currency_name['Litecoin'])),
-            InlineKeyboardButton("Tether", callback_data=str(currency_name['Tether'])),
+            InlineKeyboardButton("Dash", callback_data=currency_name['Dash'] + ',' + query.data),
+            InlineKeyboardButton("Litecoin", callback_data=currency_name['Litecoin'] + ',' + query.data),
+            InlineKeyboardButton("Tether", callback_data=currency_name['Tether'] + ',' + query.data),
         ],
         [
-            InlineKeyboardButton("Cardano", callback_data=str(currency_name['Cardano'])),
-            InlineKeyboardButton('TRON', callback_data=str(currency_name['TRON']))
+            InlineKeyboardButton("Cardano", callback_data=currency_name['Cardano'] + ',' + query.data),
+            InlineKeyboardButton('TRON', callback_data=currency_name['TRON'] + ',' + query.data)
         ]
     ]
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
         text="ارز دیجیتال", reply_markup=reply_markup
@@ -120,21 +121,19 @@ def digital(update: Update, context: CallbackContext) -> None:
 
 
 def other(update: Update, context: CallbackContext) -> None:
-    """Show new choice of buttons"""
     query = update.callback_query
     query.answer()
-    print('other: ', query.data.strip('][').split(', '))
+    print('other: ', query.data)
     keyboard = [
         [
-            InlineKeyboardButton("خرید " + query.data, callback_data=query.data + ' buy'),
-            InlineKeyboardButton("فروش " + query.data, callback_data=query.data + ' sell'),
+            InlineKeyboardButton("خرید ", callback_data='buy,' + query.data),
+            InlineKeyboardButton("فروش ", callback_data='sell,' + query.data),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
         text="منوی خرید و فروش", reply_markup=reply_markup
     )
-    # Transfer to conversation state `SECOND`
     return THIRD
 
 
@@ -145,14 +144,13 @@ def sell_buy(update: Update, context: CallbackContext) -> None:
     keyboard = [
         [
             InlineKeyboardButton(" منوی اصلی ", callback_data=str(ONE)),
-            InlineKeyboardButton(" خدانگهدار ", callback_data=str(TWO)),
+            InlineKeyboardButton(" خدانگهدار ", callback_data=query.data),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
         text="منوی خرید و فروش", reply_markup=reply_markup
     )
-    # Transfer to conversation state `SECOND`
     return FIFTH
 
 
@@ -160,7 +158,7 @@ def end(update: Update, context: CallbackContext) -> None:
     print('END')
     query = update.callback_query
     query.answer()
-    query.edit_message_text(text="See you next time!")
+    query.edit_message_text(text=query.data)
     return ConversationHandler.END
 
 
@@ -183,22 +181,16 @@ def main():
             ],
             FIFTH: [
                 CallbackQueryHandler(start_over, pattern='^' + str(ONE) + '$'),
-                CallbackQueryHandler(end, pattern='^' + str(TWO) + '$'),
+                CallbackQueryHandler(end, pattern='^.*$'),
             ],
         },
         fallbacks=[CommandHandler('start', start)],
     )
 
-    # Add ConversationHandler to dispatcher that will be used for handling
-    # updates
     dispatcher.add_handler(conv_handler)
 
-    # Start the Bot
     updater.start_polling()
 
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
 
 
