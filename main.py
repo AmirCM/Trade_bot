@@ -1,13 +1,8 @@
 import logging
 import currency
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import (
-    Updater,
-    CommandHandler,
-    CallbackQueryHandler,
-    ConversationHandler,
-    CallbackContext,
-)
+from telegram import *
+from telegram.ext import *
+import sqlite3
 
 # Enable logging
 logging.basicConfig(
