@@ -1,4 +1,5 @@
 import logging
+import currency
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     Updater,
@@ -21,46 +22,44 @@ FIRST, SECOND, THIRD, FIFTH = range(4)
 ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN = range(7)
 
 HAVALEH, DIGITAL = range(2)
-currency = {'Bitcoin': 'BTC',
-            'Ethereum': 'ETH',
-            'Monero': 'XMR',
-            'Dash': 'DASH',
-            'Litecoin': 'LTC',
-            'Tether': 'USDT',
-            'Cardano': 'ADA',
-            'TRON': 'TRX'}
+currency_name = {'Bitcoin': 'BTC',
+                 'Ethereum': 'ETH',
+                 'Monero': 'XMR',
+                 'Dash': 'DASH',
+                 'Litecoin': 'LTC',
+                 'Tether': 'USDT',
+                 'Cardano': 'ADA',
+                 'TRON': 'TRX'}
+prices = currency.Currency()
 
 
 def start(update: Update, context: CallbackContext) -> None:
     print('start')
-    # Get user that sent /start and log his name
+
     user = update.message.from_user
-    print("User {} started the conversation.".format(user.first_name))
-    # Build InlineKeyboard where each button has a displayed text
-    # and a string as callback_data
-    # The keyboard is a list of button rows, where each row is in turn
-    # a list (hence `[[...]]`).
+    print('id: ', user.username)
+
     keyboard = [
         [
-            InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH)),
-            InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL)),
+            InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH) + ',' + user.username),
+            InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL) + ',' + user.username),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    # Send message with text and appended InlineKeyboard
     update.message.reply_text("معامله خود را شروع کنید", reply_markup=reply_markup)
-    # Tell ConversationHandler that we're in state `FIRST` now
+
     return FIRST
 
 
 def start_over(update: Update, context: CallbackContext) -> None:
-    print('start over')
+    user = update.message.from_user
+    print('start over ', user.username)
     query = update.callback_query
     query.answer()
     keyboard = [
         [
-            InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH)),
-            InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL)),
+            InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH) + ',' + user.username),
+            InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL) + ',' + user.username),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -99,18 +98,18 @@ def digital(update: Update, context: CallbackContext) -> None:
 
     keyboard = [
         [
-            InlineKeyboardButton("Bitcoin", callback_data=str(currency['Bitcoin'])),
-            InlineKeyboardButton("Ethereum", callback_data=str(currency['Ethereum'])),
-            InlineKeyboardButton("Monero", callback_data=str(currency['Monero'])),
+            InlineKeyboardButton("Bitcoin", callback_data=str(currency_name['Bitcoin'])),
+            InlineKeyboardButton("Ethereum", callback_data=str(currency_name['Ethereum'])),
+            InlineKeyboardButton("Monero", callback_data=str(currency_name['Monero'])),
         ],
         [
-            InlineKeyboardButton("Dash", callback_data=str(currency['Dash'])),
-            InlineKeyboardButton("Litecoin", callback_data=str(currency['Litecoin'])),
-            InlineKeyboardButton("Tether", callback_data=str(currency['Tether'])),
+            InlineKeyboardButton("Dash", callback_data=str(currency_name['Dash'])),
+            InlineKeyboardButton("Litecoin", callback_data=str(currency_name['Litecoin'])),
+            InlineKeyboardButton("Tether", callback_data=str(currency_name['Tether'])),
         ],
         [
-            InlineKeyboardButton("Cardano", callback_data=str(currency['Cardano'])),
-            InlineKeyboardButton('TRON', callback_data=str(currency['TRON']))
+            InlineKeyboardButton("Cardano", callback_data=str(currency_name['Cardano'])),
+            InlineKeyboardButton('TRON', callback_data=str(currency_name['TRON']))
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -124,11 +123,11 @@ def other(update: Update, context: CallbackContext) -> None:
     """Show new choice of buttons"""
     query = update.callback_query
     query.answer()
-    print('other: ', query.data)
+    print('other: ', query.data.strip('][').split(', '))
     keyboard = [
         [
-            InlineKeyboardButton("خرید " + query.data, callback_data=query.data+' buy'),
-            InlineKeyboardButton("فروش " + query.data, callback_data=query.data+' sell'),
+            InlineKeyboardButton("خرید " + query.data, callback_data=query.data + ' buy'),
+            InlineKeyboardButton("فروش " + query.data, callback_data=query.data + ' sell'),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -140,7 +139,6 @@ def other(update: Update, context: CallbackContext) -> None:
 
 
 def sell_buy(update: Update, context: CallbackContext) -> None:
-
     query = update.callback_query
     query.answer()
     print('SELL BUY: ', query.data)
@@ -174,8 +172,8 @@ def main():
         entry_points=[CommandHandler('start', start)],
         states={
             FIRST: [
-                CallbackQueryHandler(havaleh, pattern='^' + str(HAVALEH) + '$'),
-                CallbackQueryHandler(digital, pattern='^' + str(DIGITAL) + '$'),
+                CallbackQueryHandler(havaleh, pattern='^' + str(HAVALEH) + ',.*' + '$'),
+                CallbackQueryHandler(digital, pattern='^' + str(DIGITAL) + ',.*' + '$'),
             ],
             SECOND: [
                 CallbackQueryHandler(other, pattern='^.*$')
