@@ -5,3 +5,7 @@
 
 # Datasource local storage ignored files
 /dataSources.local.xml
+/misc.xml
+/modules.xml
+/Trade_bot.iml
+/vcs.xml
