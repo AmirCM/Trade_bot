@@ -2,7 +2,7 @@ import logging
 import currency
 from telegram import *
 from telegram.ext import *
-import sqlite3
+from DBMS import *
 
 # Enable logging
 logging.basicConfig(
@@ -10,6 +10,9 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+# DBMS
+database = DBMS()
 
 # Stages
 FIRST, SECOND, THIRD, FIFTH = range(4)
@@ -26,6 +29,14 @@ currency_name = {'Bitcoin': 'BTC',
                  'Cardano': 'ADA',
                  'TRON': 'TRX'}
 prices = currency.Currency()
+
+
+def sign_up(username: str, phone_num: str):
+    if not database.get_user(username):
+        print('User {} already exist'.format(username))
+    else:
+        user = User(username, phone_num)
+        database.insert_user(user)
 
 
 def start(update: Update, context: CallbackContext) -> None:

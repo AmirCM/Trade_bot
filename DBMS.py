@@ -32,3 +32,8 @@ class DBMS:
     def show_users(self):
         self.cur.execute("SELECT * FROM users")
         print(self.cur.fetchall())
+
+    def get_user(self, username: str):
+        with self.conn:
+            self.cur.execute("select * from main.users WHERE id = (?)", (username,))
+        return self.cur.fetchall()
