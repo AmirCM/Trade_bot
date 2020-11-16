@@ -36,4 +36,9 @@ class DBMS:
     def get_user(self, username: str):
         with self.conn:
             self.cur.execute("select * from main.users WHERE id = (?)", (username,))
+        return self.cur.fetchone()
+
+    def get_users(self):
+        with self.conn:
+            self.cur.execute("SELECT * FROM users")
         return self.cur.fetchall()

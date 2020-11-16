@@ -13,9 +13,15 @@ logger = logging.getLogger(__name__)
 
 # DBMS
 database = DBMS()
+all_users = database.get_users()
+users_dict = {}
+for each in all_users:
+    users_dict[each[0]] = each
+all_users = users_dict
+print(all_users)
 
 # Stages
-FIRST, SECOND, THIRD, FIFTH = range(4)
+FIRST, SECOND, THIRD, FORTH, FIFTH = range(5)
 # Callback data
 ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN = range(7)
 
@@ -31,34 +37,56 @@ currency_name = {'Bitcoin': 'BTC',
 prices = currency.Currency()
 
 
-def sign_up(username: str, phone_num: str):
-    if not database.get_user(username):
-        print('User {} already exist'.format(username))
+def look_up(username):
+    global all_users
+    if username in all_users:
+        return True
     else:
-        user = User(username, phone_num)
-        database.insert_user(user)
+        return False
+
+
+def authenticate(user: User, update: Update):
+    print('AUTH', user.username)
+
+
+def sign_up(update: Update, context: CallbackContext) -> None:
+    person = update.message.from_user
+    print("Phone of {}: {}".format(person.first_name, update.message.text))
+    print(update.message.text)
+    keyboard = [
+        [
+            InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH) + ',' + person.username),
+            InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL) + ',' + person.username),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text("معامله خود را شروع کنید", reply_markup=reply_markup)
+    return THIRD
 
 
 def start(update: Update, context: CallbackContext) -> None:
     print('start')
 
-    user = update.message.from_user
-    print('id: ', user.username)
+    person = update.message.from_user
 
-    keyboard = [
-        [
-            InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH) + ',' + user.username),
-            InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL) + ',' + user.username),
+    if look_up(person.username):
+        print('User {} already exist'.format(person.username))
+        keyboard = [
+            [
+                InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH) + ',' + person.username),
+                InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL) + ',' + person.username),
+            ]
         ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text("معامله خود را شروع کنید", reply_markup=reply_markup)
-
-    return FIRST
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        update.message.reply_text("معامله خود را شروع کنید", reply_markup=reply_markup)
+        return FIRST
+    else:
+        print('New user: ', person.username)
+        update.message.reply_text("شماره تلفن خود را وارد نمایید")
+        return SECOND
 
 
 def start_over(update: Update, context: CallbackContext) -> None:
-    print('start over ', user.username)
     query = update.callback_query
     query.answer()
     keyboard = [
@@ -94,13 +122,13 @@ def havaleh(update: Update, context: CallbackContext) -> None:
     query.edit_message_text(
         text="ارز حواله", reply_markup=reply_markup
     )
-    return SECOND
+    return THIRD
 
 
 def digital(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    print('ARZ DIGITAL ', query.data)
+    print('ارز دیجیتال مورد نظر خود را انتخاب کنید: ', query.data)
 
     keyboard = [
         [
@@ -123,7 +151,7 @@ def digital(update: Update, context: CallbackContext) -> None:
     query.edit_message_text(
         text="ارز دیجیتال", reply_markup=reply_markup
     )
-    return SECOND
+    return THIRD
 
 
 def other(update: Update, context: CallbackContext) -> None:
@@ -180,9 +208,12 @@ def main():
                 CallbackQueryHandler(digital, pattern='^' + str(DIGITAL) + ',.*' + '$'),
             ],
             SECOND: [
-                CallbackQueryHandler(other, pattern='^.*$')
+                MessageHandler(Filters.regex('^\d{11}\d*$'), sign_up)
             ],
             THIRD: [
+                CallbackQueryHandler(other, pattern='^.*$')
+            ],
+            FORTH: [
                 CallbackQueryHandler(sell_buy, pattern='^.*$'),
             ],
             FIFTH: [
@@ -194,7 +225,6 @@ def main():
     )
 
     dispatcher.add_handler(conv_handler)
-
     updater.start_polling()
 
     updater.idle()
