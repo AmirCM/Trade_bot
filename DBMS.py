@@ -14,7 +14,8 @@ class DBMS:
                             is_auth =:is_auth,
                             is_joined =:is_joined
                         WHERE id = :id """,
-                        {'id': rec.username, 'phone': rec.phone, 'is_auth': rec.is_auth, 'is_joined': rec.is_joined})
+                             {'id': rec.username, 'phone': rec.phone, 'is_auth': rec.is_auth,
+                              'is_joined': rec.is_joined})
 
     def insert_user(self, rec: User):
         with self.conn:
@@ -23,6 +24,10 @@ class DBMS:
     def remove_user(self, rec: User):
         with self.conn:
             self.cur.execute("DELETE from main.users WHERE id = (?)", (rec.username,))
+
+    def delete_table(self):
+        with self.conn:
+            self.cur.execute("DELETE FROM main.users")
 
     def show_users(self):
         self.cur.execute("SELECT * FROM users")
