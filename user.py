@@ -7,3 +7,6 @@ class User:
 
     def get_data(self):
         return self.username, self.phone, self.is_auth, self.is_joined
+
+    def get_data_inlist(self):
+        return [self.username, self.phone, self.is_auth, self.is_joined]

@@ -3,6 +3,7 @@ import currency
 from telegram import *
 from telegram.ext import *
 from DBMS import *
+from sms import SMS
 
 # Enable logging
 logging.basicConfig(
@@ -14,9 +15,10 @@ logger = logging.getLogger(__name__)
 # DBMS
 database = DBMS()
 all_users = database.get_users()
+
 users_dict = {}
 for each in all_users:
-    users_dict[each[0]] = each
+    users_dict[each[0]] = list(each)
 all_users = users_dict
 print(all_users)
 
@@ -45,14 +47,14 @@ def look_up(username):
         return False
 
 
-def authenticate(user: User, update: Update):
-    print('AUTH', user.username)
-
-
-def sign_up(update: Update, context: CallbackContext) -> None:
+def authenticate(update: Update, context: CallbackContext) -> None:
     person = update.message.from_user
-    print("Phone of {}: {}".format(person.first_name, update.message.text))
+    user = User(context.user_data['username'], context.user_data['phone'])
     print(update.message.text)
+    if update.message.text == context.user_data['v_code']:
+        user.is_auth = True
+    users_dict[user.get_data_inlist()[0]] = user.get_data_inlist()
+    print(users_dict)
     keyboard = [
         [
             InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH) + ',' + person.username),
@@ -60,8 +62,19 @@ def sign_up(update: Update, context: CallbackContext) -> None:
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text("معامله خود را شروع کنید", reply_markup=reply_markup)
-    return THIRD
+    update.message.reply_text("💻  معامله خود را شروع کنید", reply_markup=reply_markup)
+    return FIRST
+
+
+def sign_up(update: Update, context: CallbackContext) -> None:
+    person = update.message.from_user
+    print("Phone of {}: {}".format(person.first_name, update.message.text))
+    update.message.reply_text("پس از دریافت پیامک کد تایید را وارد نمایید:")
+    sms_api = SMS()
+    code = sms_api.send(update.message.text)
+    context.user_data['v_code'] = code
+    context.user_data['phone'] = update.message.text
+    return SECOND
 
 
 def start(update: Update, context: CallbackContext) -> None:
@@ -79,9 +92,11 @@ def start(update: Update, context: CallbackContext) -> None:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         update.message.reply_text("معامله خود را شروع کنید", reply_markup=reply_markup)
+        context.user_data['username'] = person.username
         return FIRST
     else:
         print('New user: ', person.username)
+        context.user_data['username'] = person.username
         update.message.reply_text("شماره تلفن خود را وارد نمایید")
         return SECOND
 
@@ -208,7 +223,8 @@ def main():
                 CallbackQueryHandler(digital, pattern='^' + str(DIGITAL) + ',.*' + '$'),
             ],
             SECOND: [
-                MessageHandler(Filters.regex('^\d{11}\d*$'), sign_up)
+                MessageHandler(Filters.regex('^\d{11}\d*$'), sign_up),
+                MessageHandler(Filters.regex('^\d{1,5}$'), authenticate)
             ],
             THIRD: [
                 CallbackQueryHandler(other, pattern='^.*$')
