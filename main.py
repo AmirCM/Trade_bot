@@ -86,8 +86,8 @@ def start(update: Update, context: CallbackContext) -> None:
         print('User {} already exist'.format(person.username))
         keyboard = [
             [
-                InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH) + ',' + person.username),
-                InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL) + ',' + person.username),
+                InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH)),
+                InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL)),
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -219,8 +219,8 @@ def main():
         entry_points=[CommandHandler('start', start)],
         states={
             FIRST: [
-                CallbackQueryHandler(havaleh, pattern='^' + str(HAVALEH) + ',.*' + '$'),
-                CallbackQueryHandler(digital, pattern='^' + str(DIGITAL) + ',.*' + '$'),
+                CallbackQueryHandler(havaleh, pattern='^' + str(HAVALEH) + '$'),
+                CallbackQueryHandler(digital, pattern='^' + str(DIGITAL) + '$'),
             ],
             SECOND: [
                 MessageHandler(Filters.regex('^\d{11}\d*$'), sign_up),
