@@ -183,49 +183,44 @@ def other(update: Update, context: CallbackContext) -> None:
     context.user_data['currency'] = query.data
     return THIRD
 
+
 def amount(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
     context.user_data['T_type'] = query.data
-    if  query.data == 'buy':
+    if query.data == 'buy':
         print('Buyer')
         query.edit_message_text(text="مقدار خرید خود را وارد کنید")
     else:
         print('seller')
-        query.edit_message_text(text="مقدار فروش خود را وارد کنید",)
+        query.edit_message_text(text="مقدار فروش خود را وارد کنید", )
     return THIRD
 
-def transaction(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    query.answer()
-    if context.user_data['T_type'] == 'buy':
-        query.edit_message_text(text="خرید را تکمیل کنید")
-    else:
-        query.edit_message_text(text="فروش را تکمیل کنیدد")
-    return FORTH
 
-def sell_buy(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    query.answer()
-    print('SELL BUY: ', query.data)
+def transaction(update: Update, context: CallbackContext) -> None:
+    print(update.message.text)
+
     keyboard = [
         [
             InlineKeyboardButton(" منوی اصلی ", callback_data=str(ONE)),
-            InlineKeyboardButton(" خدانگهدار ", callback_data=query.data),
+            InlineKeyboardButton(" خدانگهدار ", callback_data=str(TWO)),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    query.edit_message_text(
-        text="منوی خرید و فروش", reply_markup=reply_markup
-    )
-    return FIFTH
+    if context.user_data['T_type'] == 'buy':
+        update.message.reply_text(text='Buy ' + update.message.text + ' ' + context.user_data['currency'],
+                                  reply_markup=reply_markup)
+    else:
+        update.message.reply_text(text='Sell ' + update.message.text + ' ' + context.user_data['currency'],
+                                  reply_markup=reply_markup)
+    return FORTH
 
 
 def end(update: Update, context: CallbackContext) -> None:
     print('END')
     query = update.callback_query
     query.answer()
-    query.edit_message_text(text=query.data)
+    query.edit_message_text(text='به امید دیدار')
     return ConversationHandler.END
 
 
@@ -245,16 +240,13 @@ def main():
                 MessageHandler(Filters.regex('^\d{1,5}$'), authenticate)
             ],
             THIRD: [
-                CallbackQueryHandler(other, pattern='^.*$'),
                 CallbackQueryHandler(amount, pattern='^buy$|^sell$'),
+                CallbackQueryHandler(other, pattern='^.*$'),
                 MessageHandler(Filters.regex('^\d+$'), transaction)
             ],
             FORTH: [
-                CallbackQueryHandler(sell_buy, pattern='^.*$'),
-            ],
-            FIFTH: [
                 CallbackQueryHandler(start_over, pattern='^' + str(ONE) + '$'),
-                CallbackQueryHandler(end, pattern='^.*$'),
+                CallbackQueryHandler(end, pattern='^' + str(TWO) + '$'),
             ],
         },
         fallbacks=[CommandHandler('start', start)],
