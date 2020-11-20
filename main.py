@@ -39,6 +39,7 @@ currency_name = {'Bitcoin': 'BTC',
 
 prices = currency.Currency()
 
+start_text = 'برای شروع تلفن خود را وارد کنید'
 
 def look_up(username):
     global all_users
@@ -94,7 +95,7 @@ def start(update: Update, context: CallbackContext) -> None:
         return FIRST
     else:
         print('New user: ', person.username)
-        update.message.reply_text("شماره تلفن خود را وارد نمایید")
+        update.message.reply_text(start_text)
         return SECOND
 
 

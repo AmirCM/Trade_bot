@@ -19,23 +19,13 @@ class SMS:
     def send(self, phone):
         code = opt_generator(5)
 
-        bulk_id = self.sms.send(
+        pattern_values = {"code": code}
+        bulk_id = self.sms.send_pattern(
+            "4tprjx5g44",  # pattern code
             "+9810000385",  # originator
-            [phone],  # recipients
-            "Verification code: \n Keep Money"  # message
+            phone,  # recipient
+            pattern_values,  # pattern values
         )
         print('Sent ', bulk_id)
-        return '82463'
+        return code
 
-
-"""
-pattern_values = {
-    "code": "LOVE YOU",
-}
-
-bulk_id = sms.send_pattern(
-    "1em8y4ixzv",    # pattern code
-    "+98sim",      # originator
-    "09210118403",  # recipient
-    pattern_values,  # pattern values
-)"""

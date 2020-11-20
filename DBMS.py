@@ -42,3 +42,5 @@ class DBMS:
         with self.conn:
             self.cur.execute("SELECT * FROM users")
         return self.cur.fetchall()
+
+
