@@ -4,6 +4,7 @@ from telegram import *
 from telegram.ext import *
 from DBMS import *
 from sms import SMS
+import unidecode
 
 # Enable logging
 logging.basicConfig(
@@ -40,6 +41,35 @@ currency_name = {'Bitcoin': 'BTC',
 prices = currency.Currency()
 
 start_text = 'برای شروع تلفن خود را وارد کنید'
+main_text = 'منوی اصلی '
+wellcome_text = """با سلام
+    به دنیای دیجیتال خوش آمدید
+    با کیپ مانی دنیای دیجیتال را تجربه کنید
+
+برخی از امکانات این ربات 👇🏻👇🏻👇🏻
+1⃣ خرید و فروش ارزهای دیجیتال
+2⃣ احراز هویت آسان، منظم و سریع
+    کاربر گرامی ,
+🍀 حساب کاربری شما فعال است.
+لطفاً عملیات مورد نظر خود را از منوی زیر انتخاب نمایید:"""
+
+main_keyboard = [[
+    InlineKeyboardButton("💵 معامله با ما", callback_data='deal'),
+    InlineKeyboardButton("💳 کیف پول", callback_data='wallet'),
+    InlineKeyboardButton("📈 بازارها", callback_data='market')
+],
+    [
+        InlineKeyboardButton("💸 معرفی به دوستان", callback_data=str(HAVALEH)),
+        InlineKeyboardButton("👤 حساب کاربری", callback_data=str(DIGITAL)),
+        InlineKeyboardButton("⚖️ قوانین", callback_data=str(DIGITAL))
+    ],
+    [
+        InlineKeyboardButton("💬 پشتیبانی", callback_data=str(DIGITAL))
+    ]
+]
+
+market_keyboard = []
+
 
 def look_up(username):
     global all_users
@@ -51,20 +81,16 @@ def look_up(username):
 
 def authenticate(update: Update, context: CallbackContext) -> None:
     user = User(context.user_data['username'], context.user_data['phone'])
-    print(update.message.text)
-    if update.message.text == context.user_data['v_code']:
+    print(unidecode.unidecode(update.message.text))
+    if unidecode.unidecode(update.message.text) == context.user_data['v_code']:
         user.is_auth = True
-    users_dict[user.get_data_inlist()[0]] = user.get_data_inlist()
-    print(users_dict)
-    keyboard = [
-        [
-            InlineKeyboardButton("معاملات ارز حواله", callback_data=str(HAVALEH)),
-            InlineKeyboardButton("معاملات ارز دیجیتال", callback_data=str(DIGITAL)),
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text("💻  معامله خود را شروع کنید", reply_markup=reply_markup)
-    return FIRST
+        print('User Authenticated')
+        users_dict[user.get_data_inlist()[0]] = user.get_data_inlist()
+        reply_markup = InlineKeyboardMarkup(main_keyboard)
+        update.message.reply_text(main_text, reply_markup=reply_markup)
+        return FIRST
+    else:
+        return SECOND
 
 
 def sign_up(update: Update, context: CallbackContext) -> None:
@@ -82,21 +108,19 @@ def start(update: Update, context: CallbackContext) -> None:
     person = update.message.from_user
     print('New Thread with ', person.username)
     context.user_data['username'] = person.username
-    if look_up(person.username):
-        print('User {} already exist'.format(person.username))
-        keyboard = [
-            [
-                InlineKeyboardButton("معاملات ارز حواله", callback_data=str(HAVALEH)),
-                InlineKeyboardButton("معاملات ارز دیجیتال", callback_data=str(DIGITAL)),
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        update.message.reply_text("معامله خود را شروع کنید", reply_markup=reply_markup)
-        return FIRST
-    else:
-        print('New user: ', person.username)
-        update.message.reply_text(start_text)
-        return SECOND
+
+    context.bot.send_message(update.message.chat_id, wellcome_text)
+    reply_markup = InlineKeyboardMarkup(main_keyboard)
+    update.message.reply_text(main_text, reply_markup=reply_markup)
+    return FIRST
+
+
+def main_menu(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+    reply_markup = InlineKeyboardMarkup(main_keyboard)
+    query.edit_message_text(main_text, reply_markup=reply_markup)
+    return 1
 
 
 def start_over(update: Update, context: CallbackContext) -> None:
