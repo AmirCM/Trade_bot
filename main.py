@@ -1,5 +1,5 @@
 import logging
-import currency
+import Currency
 from telegram import *
 from telegram.ext import *
 from DBMS import *
@@ -28,7 +28,6 @@ FIRST, SECOND, THIRD, FORTH, FIFTH = range(5)
 # Callback data
 ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN = range(7)
 
-HAVALEH, DIGITAL = range(2)
 currency_name = {'Bitcoin': 'BTC',
                  'Ethereum': 'ETH',
                  'Monero': 'XMR',
@@ -38,10 +37,9 @@ currency_name = {'Bitcoin': 'BTC',
                  'Cardano': 'ADA',
                  'TRON': 'TRX'}
 
-prices = currency.Currency()
+prices = Currency.Currency()
 
 start_text = 'برای شروع تلفن خود را وارد کنید'
-main_text = 'منوی اصلی '
 wellcome_text = """با سلام
     به دنیای دیجیتال خوش آمدید
     با کیپ مانی دنیای دیجیتال را تجربه کنید
@@ -53,22 +51,113 @@ wellcome_text = """با سلام
 🍀 حساب کاربری شما فعال است.
 لطفاً عملیات مورد نظر خود را از منوی زیر انتخاب نمایید:"""
 
-main_keyboard = [[
-    InlineKeyboardButton("💵 معامله با ما", callback_data='deal'),
-    InlineKeyboardButton("💳 کیف پول", callback_data='wallet'),
-    InlineKeyboardButton("📈 بازارها", callback_data='market')
-],
+main_keyboard = [
     [
-        InlineKeyboardButton("💸 معرفی به دوستان", callback_data=str(HAVALEH)),
-        InlineKeyboardButton("👤 حساب کاربری", callback_data=str(DIGITAL)),
-        InlineKeyboardButton("⚖️ قوانین", callback_data=str(DIGITAL))
+        InlineKeyboardButton("💵 معامله با ما", callback_data='deal'),
+        InlineKeyboardButton("💳 کیف پول", callback_data='wallet'),
+        InlineKeyboardButton("📈 بازارها", callback_data='market')
     ],
     [
-        InlineKeyboardButton("💬 پشتیبانی", callback_data=str(DIGITAL))
+        InlineKeyboardButton("💸 معرفی به دوستان", callback_data='recommend'),
+        InlineKeyboardButton("👤 حساب کاربری", callback_data='account'),
+        InlineKeyboardButton("⚖️ قوانین", callback_data='rules')
+    ],
+    [
+        InlineKeyboardButton("💬 پشتیبانی", callback_data='service')
     ]
 ]
+main_text = 'منوی اصلی '
+deal_keyboard = [
+    [
+        InlineKeyboardButton("💵معاملات ارز حواله", callback_data='cash'),
+        InlineKeyboardButton("💎معاملات ارز دیجیتال", callback_data='crypto'),
+    ],
+    [
+        InlineKeyboardButton("↩️بازگشت", callback_data='main')
+    ]
+]
+deal_text = '💵 معامله با ما'
+wallet_keyboard = [
+    [
+        InlineKeyboardButton("💵 افزایش موجودی", callback_data='increase'),
+        InlineKeyboardButton("💎 برداشت وجه", callback_data='decrease'),
+    ],
+    [
+        InlineKeyboardButton("↩️بازگشت", callback_data='main')
+    ]
+]
+wallet_text = '💳 کیف پول'
+market_keyboard = [
+    [
+        InlineKeyboardButton("↩️بازگشت", callback_data='main')
+    ]
+]
+market_text = '📈 بازارها'
+recommend_keyboard = [
+    [
+        InlineKeyboardButton("↩️بازگشت", callback_data='main')
+    ]
+]
+recommend_text = '💸 معرفی به دوستان'
+account_keyboard = [
+    [
+        InlineKeyboardButton("📱 تایید شماره تلفن", callback_data='increase'),
+        InlineKeyboardButton("✅ احراز هویت", callback_data='decrease'),
+    ],
+    [
+        InlineKeyboardButton("💳 تکمیل اطلاعات بانکی", callback_data='main'),
+        InlineKeyboardButton("↩️بازگشت", callback_data='main')
+    ]
+]
+account_text = '👤 حساب کاربری'
+rules_keyboard = [
+    [
+        InlineKeyboardButton("↩️بازگشت", callback_data='main')
+    ]
+]
+rules_text = '⚖️ قوانین'
+service_keyboard = [
+    [
+        InlineKeyboardButton("↩️بازگشت", callback_data='main')
+    ]
+]
+service_text = '💬 پشتیبانی'
 
-market_keyboard = []
+keyboards = {'main': [main_keyboard, main_text],
+             'deal': [deal_keyboard, deal_text],
+             'wallet': [wallet_keyboard, wallet_text],
+             'market': [market_keyboard, prices.post_reporter()],
+             'recommend': [recommend_keyboard, recommend_text],
+             'account': [account_keyboard, account_text],
+             'rules': [rules_keyboard, rules_text],
+             'service': [service_keyboard, service_text]}
+
+
+def start(update: Update, context: CallbackContext) -> None:
+    person = update.message.from_user
+    print('New Thread with ', person.username)
+    context.user_data['username'] = person.username
+
+    context.bot.send_message(update.message.chat_id, wellcome_text)
+    reply_markup = InlineKeyboardMarkup(main_keyboard)
+    update.message.reply_text(main_text, reply_markup=reply_markup)
+    return FIRST
+
+
+def main_menu(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+    reply_markup = InlineKeyboardMarkup(main_keyboard)
+    query.edit_message_text(main_text, reply_markup=reply_markup)
+    return FIRST
+
+
+def test(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+    reply_markup = InlineKeyboardMarkup(keyboards[query.data][0])
+    query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
+    return FIRST
 
 
 def look_up(username):
@@ -102,25 +191,6 @@ def sign_up(update: Update, context: CallbackContext) -> None:
     context.user_data['v_code'] = code
     context.user_data['phone'] = update.message.text
     return SECOND
-
-
-def start(update: Update, context: CallbackContext) -> None:
-    person = update.message.from_user
-    print('New Thread with ', person.username)
-    context.user_data['username'] = person.username
-
-    context.bot.send_message(update.message.chat_id, wellcome_text)
-    reply_markup = InlineKeyboardMarkup(main_keyboard)
-    update.message.reply_text(main_text, reply_markup=reply_markup)
-    return FIRST
-
-
-def main_menu(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    query.answer()
-    reply_markup = InlineKeyboardMarkup(main_keyboard)
-    query.edit_message_text(main_text, reply_markup=reply_markup)
-    return 1
 
 
 def start_over(update: Update, context: CallbackContext) -> None:
@@ -252,13 +322,18 @@ def end(update: Update, context: CallbackContext) -> None:
 def main():
     updater = Updater("1441929878:AAF7R_YIbI9y3hQdGyyeyWUv4LYELA0TOho")
     dispatcher = updater.dispatcher
-
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
             FIRST: [
-                CallbackQueryHandler(havaleh, pattern='^' + str(HAVALEH) + '$'),
-                CallbackQueryHandler(digital, pattern='^' + str(DIGITAL) + '$'),
+                CallbackQueryHandler(main_menu, pattern='^' + 'main' + '$'),
+                CallbackQueryHandler(test, pattern='^' + '.+' + '$'),
+                """CallbackQueryHandler(test, pattern='^' + 'wallet' + '$'),
+                CallbackQueryHandler(test, pattern='^' + 'market' + '$'),
+                CallbackQueryHandler(test, pattern='^' + 'recommend' + '$'),
+                CallbackQueryHandler(test, pattern='^' + 'account' + '$'),
+                CallbackQueryHandler(test, pattern='^' + 'rules' + '$'),
+                CallbackQueryHandler(test, pattern='^' + 'service' + '$'),"""
             ],
             SECOND: [
                 MessageHandler(Filters.regex('^\d{11}\d*$'), sign_up),
