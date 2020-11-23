@@ -126,7 +126,7 @@ service_text = '💬 پشتیبانی'
 keyboards = {'main': [main_keyboard, main_text],
              'deal': [deal_keyboard, deal_text],
              'wallet': [wallet_keyboard, wallet_text],
-             'market': [market_keyboard, prices.post_reporter()],
+             'market': [market_keyboard, market_text],
              'recommend': [recommend_keyboard, recommend_text],
              'account': [account_keyboard, account_text],
              'rules': [rules_keyboard, rules_text],

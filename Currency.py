@@ -5,6 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import jdatetime
+import concurrent.futures
 
 persian = {'BTC': 'بیت‌کوین (BTC)‏',
            'ETH': 'اتریوم (ETH)‏ ',
@@ -15,21 +16,62 @@ persian = {'BTC': 'بیت‌کوین (BTC)‏',
            'ADA': 'کاردانو (ADA)‏ ',
            'TRX': ' ترون (TRX)‏ '}
 
+crypto = {'Bitcoin': 'BTC',
+          'Ethereum': 'ETH',
+          'Monero': 'XMR',
+          'Dash': 'DASH',
+          'Litecoin': 'LTC',
+          'Tether': 'USDT',
+          'Cardano': 'ADA',
+          'TRON': 'TRX'}
+
+c_keys = ['price_dollar_rl', 'price_eur', 'price_gbp']
 post_text = ['📉 دلار', '📉 یورو', '📉 پوند انگلیس']
 sell = '👈 نرخ فروش: '
 buy = '👈🏼 خرید از مشتری: '
+url = ['https://www.tgju.org/', 'https://web-api.coinmarketcap.com/v1/cryptocurrency/'
+                                'listings/latest?aux=circulating_supply,max_supply,total_'
+                                'supply&convert=USD&cryptocurrency_type=all&limit=100&sort=market'
+                                '_cap&sort_dir=desc&start=1', 'https://wallex.ir/']
+browser = webdriver.Chrome()
 
 
-def get_page_data():
-    tic = time.perf_counter()
-    url = 'https://wallex.ir/'
-    browser = webdriver.PhantomJS()
-    browser.get(url)
+def get_cash_price():
+    results = [0, 0, 0]
+    r = requests.get(url[0])
+    soup = BeautifulSoup(r.text, features='lxml')
+    divs = soup.find_all('div', class_='home-fs-row')
+    d_in_d = []
+    for d in divs:
+        d_in_d += d.find_all('table', class_='data-table market-table dark-head market-section-right')
+    d_in_d = d_in_d[0]
+    for i in range(3):
+        price = d_in_d.find('tr', {"data-market-row": c_keys[i]}).find('td', {'class': 'nf'}).text.split(
+            ',')
+        results[i] = int(price[0]) * 100 + int(price[1]) // 10
+    return results
+
+
+def get_crypto_price():
+    r = requests.get(url[1])
+    data = json.loads(r.text)
+    data = data['data']
+    c_price = {}
+    for d in data:
+        if d['name'] in crypto:
+            c_price[crypto[d['name']]] = str(d['quote']['USD']['price'])
+    return c_price
+
+
+def get_tether_price():
+    browser.get(url[2])
     html = browser.page_source
     soup = BeautifulSoup(html, 'lxml')
     prices = soup.find_all('strong')
-    print('Tether elapse time {:.2f}'.format(time.perf_counter() - tic))
-    return unidecode(prices[5].text)
+    tether = unidecode(prices[5].text)
+    tether = tether.split(',')
+    tether = int(tether[0] + tether[1])
+    return tether
 
 
 def separator(p: str):
@@ -45,61 +87,32 @@ def separator(p: str):
 
 class Currency:
     def __init__(self):
-        self.url = ['https://www.tgju.org/', 'https://web-api.coinmarketcap.com/v1/cryptocurrency/'
-                                             'listings/latest?aux=circulating_supply,max_supply,total_'
-                                             'supply&convert=USD&cryptocurrency_type=all&limit=100&sort=market'
-                                             '_cap&sort_dir=desc&start=1']
         self.price = [0, 0, 0]
-        self.crypto = {'Bitcoin': 'BTC',
-                       'Ethereum': 'ETH',
-                       'Monero': 'XMR',
-                       'Dash': 'DASH',
-                       'Litecoin': 'LTC',
-                       'Tether': 'USDT',
-                       'Cardano': 'ADA',
-                       'TRON': 'TRX'}
-
-        self.c_keys = ['price_dollar_rl', 'price_eur', 'price_gbp']
+        self.tether = 0
+        self.crypto_prices = None
 
     def to_rial(self, c_prices):
-        tether = get_page_data()
-        tether = tether.split(',')
-        tether = int(tether[0] + tether[1])
-
+        c_prices = c_prices.copy()
         for k, v in c_prices.items():
-            c_prices[k] = int(float(v) * tether)
+            c_prices[k] = int(float(v) * self.tether)
 
-        c_prices['USDT'] = tether
+        c_prices['USDT'] = self.tether
         return c_prices
 
-    def update_db(self):
-        r = requests.get(self.url[0])
-        soup = BeautifulSoup(r.text, features='lxml')
-        divs = soup.find_all('div', class_='home-fs-row')
-        d_in_d = []
-        for d in divs:
-            d_in_d += d.find_all('table', class_='data-table market-table dark-head market-section-right')
-        d_in_d = d_in_d[0]
+    def get_prices(self):
+        tic = time.perf_counter()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            ex1 = executor.submit(get_tether_price)
+            ex2 = executor.submit(get_cash_price)
+            ex3 = executor.submit(get_crypto_price)
 
-        for i in range(3):
-            price = d_in_d.find('tr', {"data-market-row": self.c_keys[i]}).find('td', {'class': 'nf'}).text.split(
-                ',')
-            self.price[i] = int(price[0]) * 100 + int(price[1]) // 10
-
-        r = requests.get(self.url[1])
-        data = json.loads(r.text)
-        data = data['data']
-        c_price = {}
-        for d in data:
-            if d['name'] in self.crypto:
-                c_price[self.crypto[d['name']]] = str(d['quote']['USD']['price'])
-
-        # c_price['USDT'] = str(1 + round(float(c_price['USDT']) - int(float(c_price['USDT'])), 5) * 10)
-        return c_price
+        self.tether = ex1.result()
+        self.price = ex2.result()
+        self.crypto_prices = ex3.result()
+        print(f'elapse time {time.perf_counter() - tic:.2f}')
 
     def post_reporter(self):
         tic = time.perf_counter()
-
         c_prices = self.update_db()
         rials = self.to_rial(c_prices.copy())
 
@@ -125,5 +138,25 @@ class Currency:
 
 
 if __name__ == '__main__':
-    c = Currency()
-    print(c.post_reporter())
+    """login_url = 'https://wallex.ir/app/auth/login'
+    with requests.Session() as s:
+        pay_load = {
+            'email': 'amirbehzadfar.h%40gmail.com',
+            'password': '9*bzR%24C2fMAkLLq'
+        }
+        p = s.post(login_url, data=pay_load)
+        #print(p.text)
+        r = s.get('https://wallex.ir/markets/usdt-tmn')
+        print(r.text)
+    
+    browser.get('https://wallex.ir/app/auth/login')
+    email = browser.find_element_by_id("email")
+    email.clear()
+    email.send_keys("amirbehzadfar.h@gmail.com")
+
+    password = browser.find_element_by_name("password")
+    password.clear()
+    password.send_keys("9*bzR$C2fMAkLLq")
+    browser.find_element_by_class_name('signup-btn').click()
+    browser.quit()"""
+    print(get_tether_price())
