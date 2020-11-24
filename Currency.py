@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 import json
 import jdatetime
 import concurrent.futures
+import sched, time
 
 persian = {'BTC': 'بیت‌کوین (BTC)‏',
            'ETH': 'اتریوم (ETH)‏ ',
@@ -33,7 +34,6 @@ url = ['https://www.tgju.org/', 'https://web-api.coinmarketcap.com/v1/cryptocurr
                                 'listings/latest?aux=circulating_supply,max_supply,total_'
                                 'supply&convert=USD&cryptocurrency_type=all&limit=100&sort=market'
                                 '_cap&sort_dir=desc&start=1', 'https://wallex.ir/']
-browser = webdriver.Chrome()
 
 
 def get_cash_price():
@@ -64,14 +64,17 @@ def get_crypto_price():
 
 
 def get_tether_price():
-    browser.get(url[2])
-    html = browser.page_source
+    url = 'https://www.cryptoland.com/fa'
+    driver = webdriver.Chrome()
+    driver.get(url)
+    driver.execute_script('window.scrollTo(0, document.body.scrollHeight)')
+    html = driver.page_source
     soup = BeautifulSoup(html, 'lxml')
-    prices = soup.find_all('strong')
-    tether = unidecode(prices[5].text)
-    tether = tether.split(',')
-    tether = int(tether[0] + tether[1])
-    return tether
+    coin_section = soup.find('section', class_='coins-section')
+    prices = coin_section.findAll('span')
+    print(prices[16].text)
+    driver.quit()
+    return prices[16].text
 
 
 def separator(p: str):
@@ -112,9 +115,7 @@ class Currency:
         print(f'elapse time {time.perf_counter() - tic:.2f}')
 
     def post_reporter(self):
-        tic = time.perf_counter()
-        c_prices = self.update_db()
-        rials = self.to_rial(c_prices.copy())
+        rials = self.to_rial(self.crypto_prices)
 
         rials = {k: v for k, v in sorted(rials.items(), key=lambda item: item[1], reverse=True)}
 
@@ -130,33 +131,29 @@ class Currency:
         emoji = '📉'
         for k, v in rials.items():
             text += emoji + '\t' + persian[k] + ':'
-            text += str(round(float(c_prices[k]), 3)) + '$' + '\n'
+            text += str(round(float(self.crypto_prices[k]), 3)) + '$' + '\n'
             text += sell + separator(str(v)) + '\n'
             text += buy + separator(str(int(v * 0.99))) + '\n\n'
-        print('Reporting elapse time {:.2f}'.format(time.perf_counter() - tic))
         return text + '\n @keep_exchange \n'
 
 
-if __name__ == '__main__':
-    """login_url = 'https://wallex.ir/app/auth/login'
-    with requests.Session() as s:
-        pay_load = {
-            'email': 'amirbehzadfar.h%40gmail.com',
-            'password': '9*bzR%24C2fMAkLLq'
-        }
-        p = s.post(login_url, data=pay_load)
-        #print(p.text)
-        r = s.get('https://wallex.ir/markets/usdt-tmn')
-        print(r.text)
-    
-    browser.get('https://wallex.ir/app/auth/login')
-    email = browser.find_element_by_id("email")
-    email.clear()
-    email.send_keys("amirbehzadfar.h@gmail.com")
 
-    password = browser.find_element_by_name("password")
-    password.clear()
-    password.send_keys("9*bzR$C2fMAkLLq")
-    browser.find_element_by_class_name('signup-btn').click()
-    browser.quit()"""
-    print(get_tether_price())
+"""i = 0
+def do_something(sc):
+    global i
+    print(f"Doing stuff... {i}")
+    # do your stuff
+    i += 1
+    s.enter(5, 1, do_something, (sc,))"""
+
+
+if __name__ == '__main__':
+    """
+    s = sched.scheduler(time.time, time.sleep)
+    s.enter(5, 1, do_something, (s,))
+    s.run()
+
+    """
+    c = Currency()
+    c.get_prices()
+    print(c.post_reporter())

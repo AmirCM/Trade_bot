@@ -152,11 +152,16 @@ def main_menu(update: Update, context: CallbackContext) -> None:
     return FIRST
 
 
-def test(update: Update, context: CallbackContext) -> None:
+def menu_handler(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
     reply_markup = InlineKeyboardMarkup(keyboards[query.data][0])
-    query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
+    if query.data == 'market':
+        c = Currency.Currency()
+        c.get_prices()
+        query.edit_message_text(c.post_reporter(), reply_markup=reply_markup)
+    else:
+        query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
     return FIRST
 
 
@@ -327,7 +332,7 @@ def main():
         states={
             FIRST: [
                 CallbackQueryHandler(main_menu, pattern='^' + 'main' + '$'),
-                CallbackQueryHandler(test, pattern='^' + '.+' + '$'),
+                CallbackQueryHandler(menu_handler, pattern='^' + '.+' + '$'),
                 """CallbackQueryHandler(test, pattern='^' + 'wallet' + '$'),
                 CallbackQueryHandler(test, pattern='^' + 'market' + '$'),
                 CallbackQueryHandler(test, pattern='^' + 'recommend' + '$'),
