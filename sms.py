@@ -22,7 +22,7 @@ class SMS:
         pattern_values = {"code": code}
         bulk_id = self.sms.send_pattern(
             "4tprjx5g44",  # pattern code
-            "+9810000385",  # originator
+            "+982000505",  # originator
             phone,  # recipient
             pattern_values,  # pattern values
         )

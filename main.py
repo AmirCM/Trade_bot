@@ -5,6 +5,7 @@ from telegram.ext import *
 from DBMS import *
 from sms import SMS
 import unidecode
+import rules
 
 # Enable logging
 logging.basicConfig(
@@ -144,11 +145,11 @@ recommend_keyboard = [
 recommend_text = '💸 معرفی به دوستان'
 account_keyboard = [
     [
-        InlineKeyboardButton("📱 تایید شماره تلفن", callback_data='increase'),
-        InlineKeyboardButton("✅ احراز هویت", callback_data='decrease'),
+        InlineKeyboardButton("📱 تایید شماره تلفن", callback_data='phone'),
+        InlineKeyboardButton("✅ احراز هویت", callback_data='auth'),
     ],
     [
-        InlineKeyboardButton("💳 تکمیل اطلاعات بانکی", callback_data='main'),
+        InlineKeyboardButton("💳 تکمیل اطلاعات بانکی", callback_data='bank_info'),
         InlineKeyboardButton("↩️بازگشت", callback_data='main')
     ]
 ]
@@ -158,7 +159,7 @@ rules_keyboard = [
         InlineKeyboardButton("↩️بازگشت", callback_data='main')
     ]
 ]
-rules_text = '⚖️ قوانین'
+rules_text = rules.rules[0]
 service_keyboard = [
     [
         InlineKeyboardButton("↩️بازگشت", callback_data='main')
@@ -200,6 +201,9 @@ def main_menu(update: Update, context: CallbackContext) -> None:
 def menu_handler(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
+    if query.data == 'phone':
+        query.edit_message_text('👈 شماره همراه خود را وارد کنید:')
+        return FIFTH
     reply_markup = InlineKeyboardMarkup(keyboards[query.data][0])
     if query.data == 'market':
         query.edit_message_text('در حال ارزیابی قیمت ها ... ', reply_markup=reply_markup)
@@ -210,6 +214,8 @@ def menu_handler(update: Update, context: CallbackContext) -> None:
         context.user_data['d_type'] = query.data
         query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
         return SECOND
+    elif query.data == 'rules':
+        query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
     else:
         query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
     return FIRST
@@ -248,20 +254,21 @@ def amount(update: Update, context: CallbackContext) -> None:
             c.get_prices()
             c.minimum_calc()
             query.edit_message_text(text=c.minimum_reporter(context.user_data['currency'], True))
-            context.user_data['unit'] = c.min_prices
+            context.user_data['unit'] = c.min_prices[context.user_data['currency']]
         else:
             query.edit_message_text(text="در حال محاسبه قیمت")
             c.get_prices()
             c.minimum_calc()
             query.edit_message_text(text=c.minimum_reporter(context.user_data['currency'], False))
-            context.user_data['unit'] = c.min_prices
+            context.user_data['unit'] = c.min_prices[context.user_data['currency']]
     return THIRD
 
 
 def transaction(update: Update, context: CallbackContext) -> None:
     print(update.message.text, context.user_data)
     unit = float(unidecode.unidecode(update.message.text))
-    unit *= context.user_data['unit'][0]
+    unit = int(unit * context.user_data['unit'][0])
+
     keyboard = [
         [
             InlineKeyboardButton(" تایید ", callback_data='yes'),
@@ -269,10 +276,11 @@ def transaction(update: Update, context: CallbackContext) -> None:
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
+    c_type = context.user_data['currency']
     if context.user_data['unit'][2] < unit:
-        update.message.reply_text(text=f'هزینه معامله شما برابر : {unit} تومان' + context.user_data['currency'],
-                                  reply_markup=reply_markup)
+        update.message.reply_text(
+            text=f'هزینه معامله ارز {persian[c_type]} شما برابر : {Currency.separator_int(unit)} تومان',
+            reply_markup=reply_markup)
         context.user_data['unit'] = unit
     else:
         update.message.reply_text(text='مقدار وارد شده کمتر از حد معاملات است',
@@ -294,28 +302,42 @@ def look_up(username):
 
 
 def authenticate(update: Update, context: CallbackContext) -> None:
-    user = User(context.user_data['username'], context.user_data['phone'])
-    print(unidecode.unidecode(update.message.text))
-    if unidecode.unidecode(update.message.text) == context.user_data['v_code']:
-        user.is_auth = True
+    code = unidecode.unidecode(update.message.text)
+    print(code)
+
+    if code == context.user_data['v_code']:
         print('User Authenticated')
-        users_dict[user.get_data_inlist()[0]] = user.get_data_inlist()
-        reply_markup = InlineKeyboardMarkup(main_keyboard)
-        update.message.reply_text(main_text, reply_markup=reply_markup)
+        update.message.reply_text('✅ شماره ی شما با موفقیت تایید و ثبت شد')
         return FIRST
     else:
+        print('User Not Authenticated')
+        update.message.reply_text('❌ کد ارسالی مطابقت ندارد ❌')
         return SECOND
 
 
 def sign_up(update: Update, context: CallbackContext) -> None:
     person = update.message.from_user
-    print("Phone of {}: {}".format(person.first_name, update.message.text))
-    update.message.reply_text("پس از دریافت پیامک کد تایید را وارد نمایید:")
+    phone = unidecode.unidecode(update.message.text)
+
+    print("Phone of {}: {}".format(person.first_name, phone))
+    keyboard = [
+        [
+            InlineKeyboardButton("📥ارسال مجدد", callback_data='retry'),
+            InlineKeyboardButton("↩️بازگشت", callback_data='account')
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text("پس از دریافت پیامک کد تایید وارد نمایید: ", reply_markup=reply_markup)
     sms_api = SMS()
     code = sms_api.send(update.message.text)
     context.user_data['v_code'] = code
-    context.user_data['phone'] = update.message.text
-    return SECOND
+    context.user_data['phone'] = phone
+    return FIFTH
+
+
+def wrong_input(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(text="در وارد کردن یا صحت شماره خطایی صورت گرفته فرآیند لغو گردید")
+    return FIRST
 
 
 def start_over(update: Update, context: CallbackContext) -> None:
@@ -433,6 +455,11 @@ def main():
                 CallbackQueryHandler(make_deal, pattern='^yes$'),
                 CallbackQueryHandler(end, pattern='^no$'),
             ],
+            FIFTH: [
+                MessageHandler(Filters.regex('(^(\+98)\d{10}$)|(^\d{11}$)'), sign_up),
+                MessageHandler(Filters.regex('^\d{1,5}$'), authenticate),
+                MessageHandler(Filters.regex('^.+$'), wrong_input)
+            ]
         },
         fallbacks=[CommandHandler('start', start)],
     )
