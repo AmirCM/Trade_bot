@@ -36,6 +36,14 @@ currency_name = {'Bitcoin': 'BTC',
                  'Tether': 'USDT',
                  'Cardano': 'ADA',
                  'TRON': 'TRX'}
+persian = {'BTC': 'بیت‌کوین (BTC)‏',
+           'ETH': 'اتریوم (ETH)‏ ',
+           'XMR': ' مونرو (XMR)‏ ',
+           'DASH': ' دش (DASH)‏ ',
+           'LTC': 'لایت کوین (LTC)‏ ',
+           'USDT': ' تتر (USDT)‏ ',
+           'ADA': 'کاردانو (ADA)‏ ',
+           'TRX': ' ترون (TRX)‏ '}
 
 prices = Currency.Currency()
 
@@ -74,6 +82,41 @@ deal_keyboard = [
     ],
     [
         InlineKeyboardButton("↩️بازگشت", callback_data='main')
+    ]
+]
+cash_text = 'برای ادامه معامله ارز مورد نظر را انتخاب کنید'
+cash_keyboard = [
+    [
+        InlineKeyboardButton("دلار", callback_data='dollar'),
+        InlineKeyboardButton("یورو", callback_data='euro'),
+        InlineKeyboardButton("پوند", callback_data='pond')
+    ],
+    [
+        InlineKeyboardButton("یوان", callback_data=str('yuan')),
+        InlineKeyboardButton("لیر", callback_data=str('leer'))
+    ],
+    [
+        InlineKeyboardButton("↩️بازگشت", callback_data='deal')
+    ]
+]
+crypto_text = 'ارز دیجیتال مورد نظر خود را انتخاب کنید'
+crypto_keyboard = [
+    [
+        InlineKeyboardButton("Bitcoin", callback_data=currency_name['Bitcoin']),
+        InlineKeyboardButton("Ethereum", callback_data=currency_name['Ethereum']),
+        InlineKeyboardButton("Monero", callback_data=currency_name['Monero']),
+    ],
+    [
+        InlineKeyboardButton("Dash", callback_data=currency_name['Dash']),
+        InlineKeyboardButton("Litecoin", callback_data=currency_name['Litecoin']),
+        InlineKeyboardButton("Tether", callback_data=currency_name['Tether']),
+    ],
+    [
+        InlineKeyboardButton("Cardano", callback_data=currency_name['Cardano']),
+        InlineKeyboardButton('TRON', callback_data=currency_name['TRON'])
+    ],
+    [
+        InlineKeyboardButton("↩️بازگشت", callback_data='deal')
     ]
 ]
 deal_text = '💵 معامله با ما'
@@ -130,7 +173,9 @@ keyboards = {'main': [main_keyboard, main_text],
              'recommend': [recommend_keyboard, recommend_text],
              'account': [account_keyboard, account_text],
              'rules': [rules_keyboard, rules_text],
-             'service': [service_keyboard, service_text]}
+             'service': [service_keyboard, service_text],
+             'cash': [cash_keyboard, cash_text],
+             'crypto': [crypto_keyboard, crypto_text]}
 
 
 def start(update: Update, context: CallbackContext) -> None:
@@ -157,12 +202,76 @@ def menu_handler(update: Update, context: CallbackContext) -> None:
     query.answer()
     reply_markup = InlineKeyboardMarkup(keyboards[query.data][0])
     if query.data == 'market':
+        query.edit_message_text('در حال ارزیابی قیمت ها ... ', reply_markup=reply_markup)
         c = Currency.Currency()
         c.get_prices()
         query.edit_message_text(c.post_reporter(), reply_markup=reply_markup)
+    elif query.data == 'cash' or query.data == 'crypto':
+        query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
+        return SECOND
     else:
         query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
     return FIRST
+
+
+def deal_handler(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+    if query.data == 'deal':
+        reply_markup = InlineKeyboardMarkup(keyboards[query.data][0])
+        query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
+        return FIRST
+    else:
+        keyboard = [
+            [
+                InlineKeyboardButton("خرید از ما ", callback_data='buy'),
+                InlineKeyboardButton("فروش به ما ", callback_data='sell'),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text(
+            text="منوی خرید و فروش", reply_markup=reply_markup
+        )
+        context.user_data['currency'] = query.data
+        return THIRD
+
+
+def amount(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+    context.user_data['T_type'] = query.data
+    c = Currency.Currency()
+    if query.data == 'buy':
+        query.edit_message_text(text="در حال محاسبه قیمت")
+        c.get_prices()
+        c.minimum_calc()
+        query.edit_message_text(text=c.minimum_reporter(context.user_data['currency']) + 'مقدار مورد نظر خود را برای خرید را به عدد وارد نمایید: ')
+    else:
+        query.edit_message_text(text="در حال محاسبه قیمت")
+        c.get_prices()
+        c.minimum_calc()
+        query.edit_message_text(text=c.minimum_reporter(
+            context.user_data['currency']) + 'مقدار مورد نظر خود را برای فروش را به عدد وارد نمایید: ')
+    return THIRD
+
+
+def transaction(update: Update, context: CallbackContext) -> None:
+    print(update.message.text)
+
+    keyboard = [
+        [
+            InlineKeyboardButton(" منوی اصلی ", callback_data=str(ONE)),
+            InlineKeyboardButton(" خدانگهدار ", callback_data=str(TWO)),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    if context.user_data['T_type'] == 'buy':
+        update.message.reply_text(text='Buy ' + update.message.text + ' ' + context.user_data['currency'],
+                                  reply_markup=reply_markup)
+    else:
+        update.message.reply_text(text='Sell ' + update.message.text + ' ' + context.user_data['currency'],
+                                  reply_markup=reply_markup)
+    return FORTH
 
 
 def look_up(username):
@@ -213,7 +322,7 @@ def start_over(update: Update, context: CallbackContext) -> None:
     return FIRST
 
 
-def havaleh(update: Update, context: CallbackContext) -> None:
+def cash(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
     print('ARZ HAVALEH ', query.data)
@@ -237,7 +346,7 @@ def havaleh(update: Update, context: CallbackContext) -> None:
     return THIRD
 
 
-def digital(update: Update, context: CallbackContext) -> None:
+def crypto(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
     print('ارز دیجیتال مورد نظر خود را انتخاب کنید: ', query.data)
@@ -284,38 +393,6 @@ def other(update: Update, context: CallbackContext) -> None:
     return THIRD
 
 
-def amount(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    query.answer()
-    context.user_data['T_type'] = query.data
-    if query.data == 'buy':
-        print('Buyer')
-        query.edit_message_text(text="مقدار خرید خود را وارد کنید")
-    else:
-        print('seller')
-        query.edit_message_text(text="مقدار فروش خود را وارد کنید", )
-    return THIRD
-
-
-def transaction(update: Update, context: CallbackContext) -> None:
-    print(update.message.text)
-
-    keyboard = [
-        [
-            InlineKeyboardButton(" منوی اصلی ", callback_data=str(ONE)),
-            InlineKeyboardButton(" خدانگهدار ", callback_data=str(TWO)),
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    if context.user_data['T_type'] == 'buy':
-        update.message.reply_text(text='Buy ' + update.message.text + ' ' + context.user_data['currency'],
-                                  reply_markup=reply_markup)
-    else:
-        update.message.reply_text(text='Sell ' + update.message.text + ' ' + context.user_data['currency'],
-                                  reply_markup=reply_markup)
-    return FORTH
-
-
 def end(update: Update, context: CallbackContext) -> None:
     print('END')
     query = update.callback_query
@@ -341,17 +418,19 @@ def main():
                 CallbackQueryHandler(test, pattern='^' + 'service' + '$'),"""
             ],
             SECOND: [
-                MessageHandler(Filters.regex('^\d{11}\d*$'), sign_up),
-                MessageHandler(Filters.regex('^\d{1,5}$'), authenticate)
+                CallbackQueryHandler(deal_handler, pattern='^' + '.+' + '$')
             ],
             THIRD: [
                 CallbackQueryHandler(amount, pattern='^buy$|^sell$'),
-                CallbackQueryHandler(other, pattern='^.*$'),
-                MessageHandler(Filters.regex('^\d+$'), transaction)
+                MessageHandler(Filters.regex('^\d+$'), transaction),
             ],
             FORTH: [
                 CallbackQueryHandler(start_over, pattern='^' + str(ONE) + '$'),
                 CallbackQueryHandler(end, pattern='^' + str(TWO) + '$'),
+                CallbackQueryHandler(other, pattern='^.*$'),
+
+                MessageHandler(Filters.regex('^\d{11}\d*$'), sign_up),
+                MessageHandler(Filters.regex('^\d{1,5}$'), authenticate)
             ],
         },
         fallbacks=[CommandHandler('start', start)],

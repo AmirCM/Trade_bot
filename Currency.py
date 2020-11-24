@@ -34,6 +34,13 @@ url = ['https://www.tgju.org/', 'https://web-api.coinmarketcap.com/v1/cryptocurr
                                 'listings/latest?aux=circulating_supply,max_supply,total_'
                                 'supply&convert=USD&cryptocurrency_type=all&limit=100&sort=market'
                                 '_cap&sort_dir=desc&start=1', 'https://wallex.ir/']
+template = """
+⬇️ حداقل خرید: 0.001 بیت‌کوین، معادل:500,200 تومان
+⬆️ حداکثر خرید: 1 بیت‌کوین، معادل:500,212,000 تومان
+
+⏰ مهلت تکمیل سفارش: 18:18:13
+
+✅ لطفا یکی از گزینه های زیر را انتخاب نمایید:"""
 
 
 def get_cash_price():
@@ -72,9 +79,11 @@ def get_tether_price():
     soup = BeautifulSoup(html, 'lxml')
     coin_section = soup.find('section', class_='coins-section')
     prices = coin_section.findAll('span')
-    print(prices[16].text)
     driver.quit()
-    return prices[16].text
+    tether = unidecode(prices[16].text)
+    tether = tether.split(',')
+    tether = int(tether[0] + tether[1])
+    return tether
 
 
 def separator(p: str):
@@ -93,6 +102,7 @@ class Currency:
         self.price = [0, 0, 0]
         self.tether = 0
         self.crypto_prices = None
+        self.min_prices = None
 
     def to_rial(self, c_prices):
         c_prices = c_prices.copy()
@@ -136,6 +146,26 @@ class Currency:
             text += buy + separator(str(int(v * 0.99))) + '\n\n'
         return text + '\n @keep_exchange \n'
 
+    def minimum_calc(self):
+        self.min_prices = self.to_rial(self.crypto_prices)
+        criterion = self.min_prices['USDT'] * 10
+        for k, v in self.min_prices.items():
+            _min = int((criterion / v) * 10000)
+            _min /= 10000.0
+            if _min > 1:
+                _min = int(_min)
+            rial = int(_min * v)
+            self.min_prices[k] = [v, _min, rial]
+
+    def minimum_reporter(self, c_type):
+        txt = '👈 ارز انتخابی شما: '
+        txt += persian[c_type]
+        txt += '\n'
+        txt += f' تومان {self.min_prices[c_type][0]}💵 قیمت واحد: '
+        txt += '\n'
+        txt += f'⬇️ حداقل ارزش معامله: {self.min_prices[c_type][1]} بیت‌کوین، معادل:{self.min_prices[c_type][2]} تومان'
+        txt += '\n'
+        return txt
 
 
 """i = 0
@@ -146,7 +176,6 @@ def do_something(sc):
     i += 1
     s.enter(5, 1, do_something, (sc,))"""
 
-
 if __name__ == '__main__':
     """
     s = sched.scheduler(time.time, time.sleep)
@@ -156,4 +185,5 @@ if __name__ == '__main__':
     """
     c = Currency()
     c.get_prices()
-    print(c.post_reporter())
+    c.minimum_calc()
+    print(c.minimum_reporter('ETH'))
