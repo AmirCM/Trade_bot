@@ -207,6 +207,7 @@ def menu_handler(update: Update, context: CallbackContext) -> None:
         c.get_prices()
         query.edit_message_text(c.post_reporter(), reply_markup=reply_markup)
     elif query.data == 'cash' or query.data == 'crypto':
+        context.user_data['d_type'] = query.data
         query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
         return SECOND
     else:
@@ -217,21 +218,21 @@ def menu_handler(update: Update, context: CallbackContext) -> None:
 def deal_handler(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
+    keyboard = [
+        [
+            InlineKeyboardButton("💎خرید از ما ", callback_data='buy'),
+            InlineKeyboardButton("💎فروش به ما ", callback_data='sell'),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     if query.data == 'deal':
         reply_markup = InlineKeyboardMarkup(keyboards[query.data][0])
         query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
         return FIRST
     else:
-        keyboard = [
-            [
-                InlineKeyboardButton("خرید از ما ", callback_data='buy'),
-                InlineKeyboardButton("فروش به ما ", callback_data='sell'),
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text(
-            text="منوی خرید و فروش", reply_markup=reply_markup
-        )
+            text="منوی خرید و فروش", reply_markup=reply_markup)
         context.user_data['currency'] = query.data
         return THIRD
 
@@ -241,37 +242,47 @@ def amount(update: Update, context: CallbackContext) -> None:
     query.answer()
     context.user_data['T_type'] = query.data
     c = Currency.Currency()
-    if query.data == 'buy':
-        query.edit_message_text(text="در حال محاسبه قیمت")
-        c.get_prices()
-        c.minimum_calc()
-        query.edit_message_text(text=c.minimum_reporter(context.user_data['currency']) + 'مقدار مورد نظر خود را برای خرید را به عدد وارد نمایید: ')
-    else:
-        query.edit_message_text(text="در حال محاسبه قیمت")
-        c.get_prices()
-        c.minimum_calc()
-        query.edit_message_text(text=c.minimum_reporter(
-            context.user_data['currency']) + 'مقدار مورد نظر خود را برای فروش را به عدد وارد نمایید: ')
+    if context.user_data['d_type'] == 'crypto':
+        if query.data == 'buy':
+            query.edit_message_text(text="در حال محاسبه قیمت")
+            c.get_prices()
+            c.minimum_calc()
+            query.edit_message_text(text=c.minimum_reporter(context.user_data['currency'], True))
+            context.user_data['unit'] = c.min_prices
+        else:
+            query.edit_message_text(text="در حال محاسبه قیمت")
+            c.get_prices()
+            c.minimum_calc()
+            query.edit_message_text(text=c.minimum_reporter(context.user_data['currency'], False))
+            context.user_data['unit'] = c.min_prices
     return THIRD
 
 
 def transaction(update: Update, context: CallbackContext) -> None:
-    print(update.message.text)
-
+    print(update.message.text, context.user_data)
+    unit = float(unidecode.unidecode(update.message.text))
+    unit *= context.user_data['unit'][0]
     keyboard = [
         [
-            InlineKeyboardButton(" منوی اصلی ", callback_data=str(ONE)),
-            InlineKeyboardButton(" خدانگهدار ", callback_data=str(TWO)),
+            InlineKeyboardButton(" تایید ", callback_data='yes'),
+            InlineKeyboardButton(" لغو ", callback_data='no'),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    if context.user_data['T_type'] == 'buy':
-        update.message.reply_text(text='Buy ' + update.message.text + ' ' + context.user_data['currency'],
+
+    if context.user_data['unit'][2] < unit:
+        update.message.reply_text(text=f'هزینه معامله شما برابر : {unit} تومان' + context.user_data['currency'],
                                   reply_markup=reply_markup)
+        context.user_data['unit'] = unit
     else:
-        update.message.reply_text(text='Sell ' + update.message.text + ' ' + context.user_data['currency'],
+        update.message.reply_text(text='مقدار وارد شده کمتر از حد معاملات است',
                                   reply_markup=reply_markup)
     return FORTH
+
+
+def make_deal(update: Update, context: CallbackContext) -> None:
+    print(context.user_data)
+    pass
 
 
 def look_up(username):
@@ -394,7 +405,6 @@ def other(update: Update, context: CallbackContext) -> None:
 
 
 def end(update: Update, context: CallbackContext) -> None:
-    print('END')
     query = update.callback_query
     query.answer()
     query.edit_message_text(text='به امید دیدار')
@@ -410,27 +420,18 @@ def main():
             FIRST: [
                 CallbackQueryHandler(main_menu, pattern='^' + 'main' + '$'),
                 CallbackQueryHandler(menu_handler, pattern='^' + '.+' + '$'),
-                """CallbackQueryHandler(test, pattern='^' + 'wallet' + '$'),
-                CallbackQueryHandler(test, pattern='^' + 'market' + '$'),
-                CallbackQueryHandler(test, pattern='^' + 'recommend' + '$'),
-                CallbackQueryHandler(test, pattern='^' + 'account' + '$'),
-                CallbackQueryHandler(test, pattern='^' + 'rules' + '$'),
-                CallbackQueryHandler(test, pattern='^' + 'service' + '$'),"""
+
             ],
             SECOND: [
                 CallbackQueryHandler(deal_handler, pattern='^' + '.+' + '$')
             ],
             THIRD: [
                 CallbackQueryHandler(amount, pattern='^buy$|^sell$'),
-                MessageHandler(Filters.regex('^\d+$'), transaction),
+                MessageHandler(Filters.regex('^.+$'), transaction),
             ],
             FORTH: [
-                CallbackQueryHandler(start_over, pattern='^' + str(ONE) + '$'),
-                CallbackQueryHandler(end, pattern='^' + str(TWO) + '$'),
-                CallbackQueryHandler(other, pattern='^.*$'),
-
-                MessageHandler(Filters.regex('^\d{11}\d*$'), sign_up),
-                MessageHandler(Filters.regex('^\d{1,5}$'), authenticate)
+                CallbackQueryHandler(make_deal, pattern='^yes$'),
+                CallbackQueryHandler(end, pattern='^no$'),
             ],
         },
         fallbacks=[CommandHandler('start', start)],
@@ -444,3 +445,16 @@ def main():
 
 if __name__ == '__main__':
     main()
+"""CallbackQueryHandler(test, pattern='^' + 'wallet' + '$'),
+                CallbackQueryHandler(test, pattern='^' + 'market' + '$'),
+                CallbackQueryHandler(test, pattern='^' + 'recommend' + '$'),
+                CallbackQueryHandler(test, pattern='^' + 'account' + '$'),
+                CallbackQueryHandler(test, pattern='^' + 'rules' + '$'),
+                CallbackQueryHandler(test, pattern='^' + 'service' + '$'),
+                
+                
+                CallbackQueryHandler(other, pattern='^.*$'),
+
+                MessageHandler(Filters.regex('^\d{11}\d*$'), sign_up),
+                MessageHandler(Filters.regex('^\d{1,5}$'), authenticate)
+                """

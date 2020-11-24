@@ -7,6 +7,7 @@ import json
 import jdatetime
 import concurrent.futures
 import sched, time
+import json
 
 persian = {'BTC': 'بیت‌کوین (BTC)‏',
            'ETH': 'اتریوم (ETH)‏ ',
@@ -71,22 +72,27 @@ def get_crypto_price():
 
 
 def get_tether_price():
-    url = 'https://www.cryptoland.com/fa'
-    driver = webdriver.Chrome()
-    driver.get(url)
-    driver.execute_script('window.scrollTo(0, document.body.scrollHeight)')
-    html = driver.page_source
-    soup = BeautifulSoup(html, 'lxml')
-    coin_section = soup.find('section', class_='coins-section')
-    prices = coin_section.findAll('span')
-    driver.quit()
-    tether = unidecode(prices[16].text)
-    tether = tether.split(',')
-    tether = int(tether[0] + tether[1])
+    data = {
+        "srcCurrency": "usdt", "dstCurrency": "rls"
+    }
+    r = requests.post('https://api.nobitex.ir/market/stats', data=data)
+    tether = int(float(r.json()['stats']['usdt-rls']['latest']) // 10)
     return tether
 
 
 def separator(p: str):
+    i = 3 - len(p) % 3
+    rs = ''
+    for j, ch in enumerate(p):
+        if (j + i) % 3 == 0 and j != 0:
+            rs += ',' + ch
+        else:
+            rs += ch
+    return rs
+
+
+def separator_int(p: int):
+    p = str(p)
     i = 3 - len(p) % 3
     rs = ''
     for j, ch in enumerate(p):
@@ -154,16 +160,24 @@ class Currency:
             _min /= 10000.0
             if _min > 1:
                 _min = int(_min)
-            rial = int(_min * v)
-            self.min_prices[k] = [v, _min, rial]
+            self.min_prices[k] = [v, _min, int(_min * v)]
 
-    def minimum_reporter(self, c_type):
+    def minimum_reporter(self, c_type, type):
         txt = '👈 ارز انتخابی شما: '
         txt += persian[c_type]
         txt += '\n'
-        txt += f' تومان {self.min_prices[c_type][0]}💵 قیمت واحد: '
-        txt += '\n'
-        txt += f'⬇️ حداقل ارزش معامله: {self.min_prices[c_type][1]} بیت‌کوین، معادل:{self.min_prices[c_type][2]} تومان'
+        if type is True:
+            txt += f'💵 قیمت واحد: {separator_int(int(self.min_prices[c_type][0] * 0.99))} تومان '
+            txt += '\n'
+            txt += f'⬇️ حداقل ارزش معامله: {self.min_prices[c_type][1]} {c_type}، معادل: {separator_int(self.min_prices[c_type][2] * 0.99)} تومان'
+            txt += '\n'
+            txt += 'مقدار مورد نظر خود را برای خرید را به عدد وارد نمایید: '
+        else:
+            txt += f'💵 قیمت واحد: {separator_int(int(self.min_prices[c_type][0]))} تومان '
+            txt += '\n'
+            txt += f'⬇️ حداقل ارزش معامله: {self.min_prices[c_type][1]} {c_type}، معادل: {separator_int(self.min_prices[c_type][2])} تومان'
+            txt += '\n'
+            txt += 'مقدار مورد نظر خود را برای فروش را به عدد وارد نمایید: '
         txt += '\n'
         return txt
 
@@ -186,4 +200,4 @@ if __name__ == '__main__':
     c = Currency()
     c.get_prices()
     c.minimum_calc()
-    print(c.minimum_reporter('ETH'))
+    print(c.min_prices)
