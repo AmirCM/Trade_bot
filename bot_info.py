@@ -3,7 +3,7 @@ import datetime
 from telegram import *
 
 # Stages
-FIRST, SECOND, THIRD, FORTH, FIFTH = range(5)
+FIRST, SECOND, THIRD, FORTH, FIFTH, SIXTH = range(6)
 # Callback data
 ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN = range(7)
 
@@ -23,8 +23,6 @@ persian = {'BTC': 'بیت‌کوین (BTC)‏',
            'USDT': ' تتر (USDT)‏ ',
            'ADA': 'کاردانو (ADA)‏ ',
            'TRX': ' ترون (TRX)‏ '}
-
-
 
 start_text = 'برای شروع تلفن خود را وارد کنید'
 wellcome_text = """با سلام
@@ -109,6 +107,27 @@ wallet_keyboard = [
     ]
 ]
 wallet_text = '💳 کیف پول'
+wallet_action_keyboard = [
+    [
+        InlineKeyboardButton("Bitcoin", callback_data=currency_name['Bitcoin']),
+        InlineKeyboardButton("Ethereum", callback_data=currency_name['Ethereum']),
+        InlineKeyboardButton("Monero", callback_data=currency_name['Monero']),
+    ],
+    [
+        InlineKeyboardButton("Dash", callback_data=currency_name['Dash']),
+        InlineKeyboardButton("Litecoin", callback_data=currency_name['Litecoin']),
+        InlineKeyboardButton("Tether", callback_data=currency_name['Tether']),
+    ],
+    [
+        InlineKeyboardButton("Cardano", callback_data=currency_name['Cardano']),
+        InlineKeyboardButton('TRON', callback_data=currency_name['TRON'])
+    ],
+    [
+        InlineKeyboardButton("💳تومان", callback_data='toman'),
+        InlineKeyboardButton("↩️بازگشت", callback_data='wallet')
+    ],
+]
+wallet_action_text = '👈 ارز مورد نظر خود را برای تراکنش مورد نظر انتخاب نمایید: '
 market_keyboard = [
     [
         InlineKeyboardButton("↩️بازگشت", callback_data='main')
@@ -154,11 +173,12 @@ keyboards = {'main': [main_keyboard, main_text],
              'rules': [rules_keyboard, rules_text],
              'service': [service_keyboard, service_text],
              'cash': [cash_keyboard, cash_text],
-             'crypto': [crypto_keyboard, crypto_text]}
+             'crypto': [crypto_keyboard, crypto_text],
+             'wallet_action': [wallet_action_keyboard, wallet_action_text]}
 
 
 def get_duration(time: datetime.datetime):
     duration = datetime.datetime.now(datetime.timezone.utc) - time
     mins = duration.seconds // 60
     hours = mins // 60
-    return hours, mins - hours*60, duration.seconds - mins*60
+    return hours, mins - hours * 60, duration.seconds - mins * 60

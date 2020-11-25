@@ -51,6 +51,13 @@ def menu_handler(update: Update, context: CallbackContext) -> None:
     if query.data == 'phone':
         query.edit_message_text('👈 شماره همراه خود را وارد کنید:')
         return FIFTH
+
+    if query.data == 'increase' or query.data == 'decrease':
+        context.user_data['wallet_action'] = query.data
+        reply_markup = InlineKeyboardMarkup(keyboards["wallet_action"][0])
+        query.edit_message_text(keyboards["wallet_action"][1], reply_markup=reply_markup)
+        return SIXTH
+
     reply_markup = InlineKeyboardMarkup(keyboards[query.data][0])
     if query.data == 'market':
         query.edit_message_text('در حال ارزیابی قیمت ها ... ', reply_markup=reply_markup)
@@ -71,6 +78,7 @@ def menu_handler(update: Update, context: CallbackContext) -> None:
 def deal_handler(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
+
     keyboard = [
         [
             InlineKeyboardButton("💎خرید از ما ", callback_data='buy'),
@@ -86,6 +94,21 @@ def deal_handler(update: Update, context: CallbackContext) -> None:
     else:
         query.edit_message_text(
             text="منوی خرید و فروش", reply_markup=reply_markup)
+        context.user_data['currency'] = query.data
+        return THIRD
+
+
+def wallet_handler(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+
+    if query.data == 'wallet':
+        reply_markup = InlineKeyboardMarkup(keyboards[query.data][0])
+        query.edit_message_text(keyboards[query.data][1], reply_markup=reply_markup)
+        return FIRST
+    else:
+        query.edit_message_text(
+            text="👈 لطفا، مقدار را با اعداد وارد نمایید: ")
         context.user_data['currency'] = query.data
         return THIRD
 
@@ -136,6 +159,7 @@ def transaction(update: Update, context: CallbackContext) -> None:
 
 
 def make_deal(update: Update, context: CallbackContext) -> None:
+    # need to be continued
     print(context.user_data)
     pass
 
@@ -300,6 +324,9 @@ def main():
                 MessageHandler(Filters.regex('(^(\+98)\d{10}$)|(^\d{11}$)'), sign_up),
                 MessageHandler(Filters.regex('^\d{1,5}$'), authenticate),
                 MessageHandler(Filters.regex('^.+$'), wrong_input)
+            ],
+            SIXTH: [
+                CallbackQueryHandler(wallet_handler, pattern='^' + '.+' + '$')
             ]
         },
         fallbacks=[CommandHandler('start', start)],
