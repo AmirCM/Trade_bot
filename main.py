@@ -343,14 +343,8 @@ def wrong_input(update: Update, context: CallbackContext) -> None:
 def start_over(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    keyboard = [
-        [
-            InlineKeyboardButton("ارز حواله", callback_data=str(HAVALEH)),
-            InlineKeyboardButton("ارز دیجیتال", callback_data=str(DIGITAL)),
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
 
+    reply_markup = InlineKeyboardMarkup(main_keyboard)
     query.edit_message_text(text="معامله خود را شروع کنید", reply_markup=reply_markup)
     return FIRST
 
